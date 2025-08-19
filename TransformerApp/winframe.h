@@ -26,38 +26,36 @@ int sysPressed(int key) { return GetAsyncKeyState(key) & 0x8000; }
 
 int sysTapped(int key) { return GetAsyncKeyState(key) & 0x0001; }
 
-struct keyboardHandler {
-  char key[6];
+union keyboardHandler {
+  char key[8];
+  Register keyReg;
 };
 
-void pressKey(struct keyboardHandler *keyH, char key) {
-  for (int i = 0; i < 6; ++i) {
+void pressKey(union keyboardHandler *keyH, char key) {
+  for (int i = 0; i < 8; ++i)
     if (!keyH->key[i]) {
       keyH->key[i] = key;
       break;
     }
-  }
 }
 
-void releaseKey(struct keyboardHandler *keyH, char key) {
-  for (int i = 0; i < 6; ++i) {
+void releaseKey(union keyboardHandler *keyH, char key) {
+  for (int i = 0; i < 8; ++i)
     if (keyH->key[i] == key) {
       keyH->key[i] = 0;
       break;
     }
-  }
 }
 
-int hasKey(struct keyboardHandler *keyH, char key) {
-  for (int i = 0; i < 6; ++i)
+int hasKey(union keyboardHandler *keyH, char key) {
+  for (int i = 0; i < 8; ++i)
     if (keyH->key[i] == key)
       return 1;
   return 0;
 }
 
-void clearKeyboardHandler(struct keyboardHandler *keyH) {
-  for (int i = 0; i < 6; ++i)
-    keyH->key[i] = 0;
+void clearKeyboardHandler(union keyboardHandler *keyH) {
+  keyH->keyReg = 0;
 }
 
 struct mouseHandler {
@@ -146,9 +144,9 @@ void setPaintBrush(struct paintHandler *paintH, unsigned color) {
 Register CALLBACK procedure(Window, unsigned code, size_t flag, Register);
 
 struct WindowFrame {
-  WNDCLASS class;
+  WNDCLASS winClass;
   struct cursorHandler curH;
-  struct keyboardHandler keyH;
+  union keyboardHandler keyH;
   struct mouseHandler mouseH;
   struct paintHandler paintH;
   HBITMAP bitmap;
@@ -158,10 +156,10 @@ struct WindowFrame {
 typedef struct WindowFrame WindowFrame;
 
 WindowFrame newWindowFrame() {
-  WindowFrame frame = {};
-  frame.class.lpfnWndProc = procedure;
-  frame.class.hInstance = GetModuleHandle(NULL);
-  frame.class.lpszClassName = "Window Frame";
+  WindowFrame frame = {0};
+  frame.winClass.lpfnWndProc = procedure;
+  frame.winClass.hInstance = GetModuleHandle(NULL);
+  frame.winClass.lpszClassName = "Window Frame";
 
   frame.curH.idleCursor = LoadCursor(0, IDC_ARROW);
   frame.curH.pointCursor = LoadCursor(0, IDC_HAND);
@@ -171,7 +169,7 @@ WindowFrame newWindowFrame() {
   frame.curH.borderCursor[2] = LoadCursor(0, IDC_SIZENWSE);
   frame.curH.borderCursor[3] = LoadCursor(0, IDC_SIZENESW);
 
-  RegisterClass(&frame.class);
+  RegisterClass(&frame.winClass);
 
   return frame;
 }
@@ -197,11 +195,11 @@ void setBitmap(WindowFrame *frame, Window window){
 
 Window newWindow(WindowFrame *frame, const char *name, int x, int y, int w, int h) {
   Window window = CreateWindowEx(
-    0, frame->class.lpszClassName,
+    0, frame->winClass.lpszClassName,
     name, WS_TILEDWINDOW,
     x, y, w, h,
     0, 0,
-    frame->class.hInstance, 0
+    frame->winClass.hInstance, 0
   );
   if (!window) {
     DWORD err = GetLastError();
@@ -218,15 +216,17 @@ void closeWindowFrame(WindowFrame *frame) {
     DeleteObject(frame->paintH.pen);
   if (frame->paintH.brush)
     DeleteObject(frame->paintH.brush);
-  UnregisterClass(frame->class.lpszClassName, frame->class.hInstance);
-  *frame = (WindowFrame){};
+  UnregisterClass(frame->winClass.lpszClassName, frame->winClass.hInstance);
+  *frame = (WindowFrame){0};
 }
 
-void handleEvents(Event *event, Window window) {
+Register handleEvents(Event *event, Window window) {
+  Register messageCode;
   while (PeekMessage(event, window, 0, 0, 1)) {
-    TranslateMessage(event);
+    messageCode = event->message;
     DispatchMessage(event);
   }
+  return messageCode;
 }
 
 Register CALLBACK procedure(Window window, unsigned code, size_t flag, Register data) {

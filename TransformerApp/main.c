@@ -1,20 +1,7 @@
-#define ACTIVATIONFNIMPL
-#define LAYERMODELIMPL
 #include <stdio.h>
 #include <stdlib.h>
 #include "winframeGUI.h"
 #include "layerModel.h"
-
-void printMat(Mat m){
-  putchar('\n');
-  for(unsigned i = 0; i < m.r; i++){
-    putchar('|');
-    for(unsigned j = 0; j < m.c; j++){
-      printf("%1.2f\t", readMat(m, i, j));
-    }
-    puts("|");
-  }
-}
 
 LayerModel loadLayerModel(FILE *file){
   LayerModel lm;
@@ -25,12 +12,15 @@ LayerModel loadLayerModel(FILE *file){
     fread(&lm.layer[i].act, sizeof(enum LayerFunc), 1, file);
     fread(&lm.layer[i].weight.r, sizeof(unsigned), 1, file);
     fread(&lm.layer[i].weight.c, sizeof(unsigned), 1, file);
-    lm.layer[i].weight.data = malloc(lm.layer[i].weight.r * lm.layer[i].weight.c * sizeof(float));
+    lm.layer[i].weight.data = malloc(sizeof(float) * lm.layer[i].weight.r * lm.layer[i].weight.c);
     fread(lm.layer[i].weight.data, sizeof(float), lm.layer[i].weight.r * lm.layer[i].weight.c, file);
     fread(&lm.layer[i].bias.r, sizeof(unsigned), 1, file);
     fread(&lm.layer[i].bias.c, sizeof(unsigned), 1, file);
-    lm.layer[i].bias.data = malloc(lm.layer[i].bias.r * lm.layer[i].bias.c * sizeof(float));
+    lm.layer[i].bias.data = malloc(sizeof(float) * lm.layer[i].bias.r * lm.layer[i].bias.c);
     fread(lm.layer[i].bias.data, sizeof(float), lm.layer[i].bias.r * lm.layer[i].bias.c, file);
+    lm.layer[i].output.r = 0;
+    lm.layer[i].output.c = lm.layer[i].weight.c;
+    lm.layer[i].output.data = NULL;
   }
   return lm;
 }
@@ -80,7 +70,6 @@ void mainTick(WindowFrame *frame, Window window){
   if(someUpdate){
     LayerModel *lm = frame->GUI[2];
     Mat *in = frame->GUI[3];
-    Mat *out = frame->GUI[4];
 
     for(int i = 0; i < 3; ++i){
       for(int j = 0; j < 5; ++j){
@@ -88,17 +77,17 @@ void mainTick(WindowFrame *frame, Window window){
       }
     }
 
-    outputLayerModel(*lm, *in, out);
+    outputLayerModel(lm, *in);
 
-    int guess = 9;
-    for(; guess >= 0; --guess) if(out->data[guess] > 0.5f) break;
+    int guess = 35;
+    for(; guess >= 0; --guess) if(readLayerModelOutput(lm).data[guess] > 0.5f) break;
     if(guess < 0) setTextContent(txtbox, "?");
     else{
-      char digit[2] = {'0' + guess, 0};
+      char digit[2];
+      digit[0] = guess < 10 ? '0' + guess : 'A' + guess - 10;
+      digit[1] = 0;
       setTextContent(txtbox, digit);
     }
-
-    destroyMat(out);
   }
 
   setTextRectToFit(txtbox, window);
@@ -116,14 +105,15 @@ int main(){
   LayerModel lm = loadLayerModel(f);
   fclose(f);
 
-  Mat input = newMat(1, 15), output = {};
+  Mat input = {.data = NULL, .r = 1, .c = 15};
+  matAlloc(&input);
 
   WindowFrame frame = newWindowFrame();
   frame.paintProc = mainRender;
   int count = 0;
   
-  GUIRect image[15] = {};
-  GUIClickBox hitboxes[15] = {};
+  GUIRect image[15] = {0};
+  GUIClickBox hitboxes[15] = {0};
   for(int i = 0; i < 3; ++i){
     for(int j = 0; j < 5; ++j){
         GUIRect *ref = image + (i + j * 3);
@@ -135,7 +125,7 @@ int main(){
     }
   }
 
-  GUITextBox txtbox = {};
+  GUITextBox txtbox = {0};
   char digit[2];
   setTextBuffer(&txtbox, digit, 1);
   setTextContent(&txtbox, "?");
@@ -144,7 +134,7 @@ int main(){
   setRectPen(&txtbox.rect, 1, 2, 0);
   setRectBrush(&txtbox.rect, 0xdddddd);
   
-  void *GUIElements[] = {hitboxes, &txtbox, &lm, &input, &output};
+  void *GUIElements[] = {hitboxes, &txtbox, &lm, &input};
   frame.GUI = GUIElements;
   
   Window window = newWindow(&frame, "AI manager", 0x80000000, 0x80000000, 0x80000000, 0x80000000);
@@ -154,6 +144,7 @@ int main(){
   Event event;
   while (IsWindow(window)) {
     if (sysTapped(VK_ESCAPE)) {
+      printf("%i", WM_KILLFOCUS);
       DestroyWindow(window);
       break;
     }
@@ -164,14 +155,15 @@ int main(){
       UpdateWindow(window);
     }
 
+    if(frame.keyH.key[0]) printf("%x\n", (int)frame.keyH.key[0] & 0xff);
+
     Sleep(10);
   }
 
   closeWindowFrame(&frame);
 
-  freeMat(output);
-  freeMat(input);
-  freeLayerModel(lm);
+  matFree(&input);
+  freeLayerModel(&lm);
 
   puts("Exitted normally");
 }

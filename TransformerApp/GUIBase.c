@@ -69,11 +69,11 @@ void mainTick(WindowFrame *frame, Window window){
     }
     }
     snprintf(txtbox->text, txtbox->maxLen, "Count is at %i", *count);
-    txtbox->textLen = strLen(txtbox->text);
+    txtbox->textLen = strlen(txtbox->text);
   }
 
   setTextRectToFit(frame->GUI[0], window);
-  setTextRectPos(txtbox, wincx - txtbox->rect.w / 2, wincy - txtbox->rect.h / 2);
+  setRectPos(&txtbox->rect, wincx - txtbox->rect.w / 2, wincy - txtbox->rect.h / 2);
 
   InvalidateRect(window, 0, 0);
 }
@@ -83,8 +83,8 @@ int main() {
   frame.paintProc = mainRender;
   int count = 0;
   
-  char mutableStr[20] = {};
-  GUITextBox txtbox = {};
+  char mutableStr[20] = {0};
+  GUITextBox txtbox = {0};
   setTextBuffer(&txtbox, mutableStr, 20);
   setTextContent(&txtbox, "Count is 0");
   setTextFontColor(&txtbox, 0x0000ff);
@@ -92,7 +92,7 @@ int main() {
   setRectPen(&txtbox.rect, PS_SOLID, 1, 0x0000ff);
   setRectBrush(&txtbox.rect, 0xdddddd);
 
-  GUIClickBox countClick = {};
+  GUIClickBox countClick = {0};
   countClick.rect = &txtbox.rect;
   
   void *GUIElements[] = {&txtbox, &countClick, &count};

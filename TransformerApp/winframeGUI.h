@@ -1,15 +1,15 @@
 #ifndef WINFRAMEGUIH
 #define WINFRAMEGUIH
 
-#define PAINTBUFFERSTART(DeviceContext, WinRect)\
+#define PAINTBUFFERSTART(NewDeviceContext, WinRect)\
 GetClientRect(window, &(WinRect));\
 int clientW = (WinRect).right - (WinRect).left;\
 int clientH = (WinRect).bottom - (WinRect).top;\
 if(clientW <= 0 || clientH <= 0) return;\
 struct paintHandler *paintH = &frame->paintH;\
 HDC hdc = BeginPaint(window, &paintH->painter);\
-HDC (DeviceContext) = CreateCompatibleDC(hdc);\
-HBITMAP refBitmap = (HBITMAP)SelectObject((DeviceContext), frame->bitmap)
+HDC (NewDeviceContext) = CreateCompatibleDC(hdc);\
+HBITMAP refBitmap = (HBITMAP)SelectObject((NewDeviceContext), frame->bitmap)
 
 #define PAINTBUFFEREND(DeviceContext)\
 BitBlt(hdc, 0, 0,\
@@ -19,22 +19,8 @@ SelectObject(DeviceContext, refBitmap);\
 DeleteDC(DeviceContext);\
 EndPaint(window, &paintH->painter)
 
+#include <string.h>
 #include "winframe.h"
-
-Register strLen(const char *str){
-  const char *end = str;
-  while(*end) ++end;
-  return (Register)(end - str);
-}
-
-void strCopy(const char *src, char *dest, Register maxLen){
-  while(*src && maxLen > 0){
-    *dest = *src;
-    ++src;
-    ++dest;
-    --maxLen;
-  }
-}
 
 struct GUIRect{
   int x, y, w, h;
@@ -102,19 +88,19 @@ typedef struct GUITextBox GUITextBox;
 
 void setTextStatic(GUITextBox *txtbox, const char *text){
   txtbox->text = (char*)text;
-  txtbox->textLen = strLen(text);
+  txtbox->textLen = strlen(text);
   txtbox->maxLen = -1;
 }
 
 void setTextBuffer(GUITextBox *txtbox, char *text, Register maxLen){
   txtbox->text = text;
-  txtbox->textLen = strLen(text);
+  txtbox->textLen = strlen(text);
   txtbox->maxLen = maxLen;
 }
 
 void setTextContent(GUITextBox *txtbox, const char *text){
-  strCopy(text, txtbox->text, txtbox->maxLen);
-  txtbox->textLen = strLen(text);
+  strncpy(txtbox->text, text, txtbox->maxLen);
+  txtbox->textLen = strlen(text);
 }
 
 void setTextFontColor(GUITextBox *txtbox, unsigned color){
@@ -155,6 +141,6 @@ int tickClickBox(GUIClickBox *clickBox, int mouseBtn, int x, int y){
   else
     clickBox->clicked &= ~(mouseBtn | 0x80000000);
   return clickBox->clicked & (mouseBtn | 0x80000000);
-} 
+}
 
 #endif

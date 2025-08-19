@@ -1,7 +1,7 @@
-#ifndef ACTVATIONFNH
-#define ACTVATIONFNH
+#ifndef ACTIVATIONFNH
+#define ACTIVATIONFNH
 
-#include "matrix.h"
+#include "lowmat.h"
 #include <math.h>
 
 void LayerSigmoid(Mat out);
@@ -30,29 +30,29 @@ extern float (*LossFuncList[])(Mat, Mat);
 
 #endif
 
-#ifdef ACTIVATIONFNIMPL
+#ifdef ACTIVATIONFNH
 
 void LayerSigmoid(Mat inp){
   float val;
   for(size_t i = 0; i < inp.r * inp.c; i++){
-    val = readMat(inp, 0, i);
-    setMat(inp, 0, i, 1.f / (exp(-val) + 1.f));
+    val = inp.data[i];
+    inp.data[i] = 1.f / (expf(-val) + 1.f);
   }
 }
 
 void LayerRectify(Mat inp){
   float val;
   for(size_t i = 0; i < inp.r * inp.c; i++){
-    val = readMat(inp, 0, i);
-    setMat(inp, 0, i, val <= 0.f ? 0.f : val);
+    val = inp.data[i];
+    inp.data[i] = val <= 0.f ? 0.f : val;
   }
 }
 
 void LayerHeaviside(Mat inp){
   float val;
   for(size_t i = 0; i < inp.r * inp.c; i++){
-    val = readMat(inp, 0, i);
-    setMat(inp, 0, i, val < 0.f ? 0.f : 1.f);
+    val = inp.data[i];
+    inp.data[i] = val < 0.f ? 0.f : 1.f;
   }
 }
 
@@ -61,9 +61,9 @@ void LayerSoftmax(Mat inp){
   for(unsigned i = 0; i < inp.r; i++){
     total = 0.f;
     for(unsigned j = 0; j < inp.c; j++)
-      total += expf(readMat(inp, i, j));
+      total += expf(inp.data[i * inp.c + j]);
     for(unsigned j = 0; j < inp.c; j++)
-      setMat(inp, i, j, expf(readMat(inp, i, j)) / total);
+      inp.data[i * inp.c + j] = expf(inp.data[i * inp.c + j]) / total;
   }
 }
 
@@ -98,7 +98,7 @@ float LossCategory(Mat out, Mat targ){
   for (size_t i = 0; i < out.r * out.c; i++){
     float y = targ.data[i], py = out.data[i];
     if(py <= 0.f) py = 1e-7f;
-    total += y * log(py);
+    total += y * logf(py);
   }
   return -total;
 }
@@ -109,7 +109,7 @@ float LossBinary(Mat out, Mat targ){
     float y = targ.data[i], py = out.data[i];
     if(py <= 0.f) py = 1e-7f;
     if(py >= 1.f) py = 1.f - 1e-7f;
-    total -= y * log(py) + (1.f - y) * log(1.f - py);
+    total -= y * logf(py) + (1.f - y) * logf(1.f - py);
   }
   return total;
 }

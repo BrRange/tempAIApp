@@ -14,6 +14,29 @@ struct Mat{
   float *data;
 };
 typedef struct Mat Mat;
+Mat newMat(unsigned r, unsigned c);
+Mat idMat(unsigned d);
+void fillfMat(Mat, ...);
+void fillMat(Mat, ...);
+float readMat(Mat, unsigned r, unsigned c);
+float *viewMat(Mat, unsigned r, unsigned c);
+void setMat(Mat, unsigned r, unsigned c, float val);
+void randMat(Mat);
+void addMat(Mat dst, Mat val);
+void subMat(Mat dst, Mat val);
+void scaleMat(Mat, float);
+Mat composeMat(Mat a, Mat b);
+void destroyMat(Mat*);
+void freeMat(Mat);
+void overwriteMat(Mat *var, Mat val);
+Mat copyMat(Mat);
+Mat transposeMat(Mat);
+Mat reduceMat(Mat, unsigned x, unsigned y);
+float determinantMat(Mat);
+
+#endif
+
+#ifdef IMPLEMENT
 
 Mat newMat(unsigned r, unsigned c){
   if(r && c); else return (Mat){0, 0, 0};
